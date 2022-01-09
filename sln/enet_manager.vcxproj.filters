@@ -19,20 +19,26 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\inc\enet_channel.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\enet_connection.h">
+      <Filter>inc</Filter>
+    </ClInclude>
     <ClInclude Include="..\inc\enet_manager.h">
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\enet_manager_impl.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\enet_connection.h">
-      <Filter>inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\enet_channel.h">
+    <ClInclude Include="..\inc\enet_packet.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\enet_channel.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\enet_connection.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -43,9 +49,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\enet_service.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\enet_channel.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

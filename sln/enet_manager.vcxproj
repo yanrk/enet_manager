@@ -39,9 +39,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\enet_channel.h" />
+    <ClInclude Include="..\inc\enet_connection.h" />
     <ClInclude Include="..\inc\enet_manager.h" />
     <ClInclude Include="..\inc\enet_manager_impl.h" />
-    <ClInclude Include="..\inc\enet_connection.h" />
+    <ClInclude Include="..\inc\enet_packet.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\enet_channel.cpp" />

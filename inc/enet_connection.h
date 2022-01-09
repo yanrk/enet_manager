@@ -12,6 +12,7 @@
 
 
 #include "enet/enet.h"
+#include "enet_packet.h"
 #include "enet_manager.h"
 
 class EnetChannel;
@@ -19,7 +20,7 @@ class EnetChannel;
 class EnetConnection : public EnetConnectionBase, public std::enable_shared_from_this<EnetConnection>
 {
 public:
-    EnetConnection(EnetServiceBase * enet_service, ENetHost * enet_host, ENetPeer * enet_peer);
+    EnetConnection(EnetServiceBase * enet_service, ENetHost * enet_host, ENetPeer * enet_peer, EnetPacketList * enet_packets);
     virtual ~EnetConnection() override;
 
 public:
@@ -58,6 +59,7 @@ private:
     EnetServiceBase                               * m_enet_service;
     ENetHost                                      * m_enet_host;
     ENetPeer                                      * m_enet_peer;
+    EnetPacketList                                * m_enet_packets;
     std::shared_ptr<EnetChannel>                    m_enet_channels[ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT];
     void                                          * m_user_data;
     bool                                            m_closed;

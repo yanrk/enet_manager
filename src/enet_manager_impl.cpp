@@ -64,21 +64,32 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
                 host = "0.0.0.0";
             }
 
+            ENetHost * enet_host = nullptr;
+            EnetPacketList * enet_packets = nullptr;
+
             ENetAddress address;
             enet_address_set_host(&address, host);
 
             std::size_t port_index = 0;
             while (port_index < port_count)
             {
-                address.port = port_array[port_index++];
-                ENetHost * server = enet_host_create(&address, ENET_PROTOCOL_MAXIMUM_PEER_ID, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
-                if (nullptr == server)
+                address.port = port_array[port_index];
+
+                enet_packets = new EnetPacketList;
+                if (nullptr == enet_packets)
+                {
+                    RUN_LOG_ERR("enet manager init failure while enet packets create");
+                    break;
+                }
+
+                enet_host = enet_host_create(&address, ENET_PROTOCOL_MAXIMUM_PEER_ID, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
+                if (nullptr == enet_host)
                 {
                     RUN_LOG_ERR("enet manager init failure while enet server create");
                     break;
                 }
 
-                std::thread enet_thread = std::thread(&EnetManagerImpl::handle_event, this, server, nullptr);
+                std::thread enet_thread = std::thread(&EnetManagerImpl::handle_event, this, enet_host, enet_packets, nullptr);
                 if (!enet_thread.joinable())
                 {
                     RUN_LOG_ERR("enet manager init failure while event thread create");
@@ -86,6 +97,21 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
                 }
 
                 enet_thread.detach();
+
+                enet_host = nullptr;
+                enet_packets = nullptr;
+
+                ++port_index;
+            }
+
+            if (nullptr != enet_host)
+            {
+                enet_host_destroy(enet_host);
+            }
+
+            if (nullptr != enet_packets)
+            {
+                delete enet_packets;
             }
 
             if (port_index < port_count)
@@ -128,14 +154,21 @@ void EnetManagerImpl::exit()
 
 std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::string & host, unsigned short port, const void * identity, const char * bind_ip, unsigned short bind_port)
 {
-    ENetHost * client = nullptr;
+    ENetHost * enet_host = nullptr;
     ENetPeer * enet_peer = nullptr;
-    EnetConnection * enet_connection = nullptr;
+    EnetPacketList * enet_packets = nullptr;
 
     do
     {
-        client = enet_host_create(nullptr, 1, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
-        if (nullptr == client)
+        enet_packets = new EnetPacketList;
+        if (nullptr == enet_packets)
+        {
+            RUN_LOG_ERR("create connection failure while enet packets create");
+            break;
+        }
+
+        enet_host = enet_host_create(nullptr, 1, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
+        if (nullptr == enet_host)
         {
             RUN_LOG_ERR("create connection failure while enet client create");
             break;
@@ -151,14 +184,14 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
             ENetAddress address;
             enet_address_set_host_ip(&address, bind_ip);
             address.port = bind_port;
-            enet_socket_bind(client->socket, &address);
+            enet_socket_bind(enet_host->socket, &address);
         }
 
         ENetAddress address;
         enet_address_set_host(&address, host.c_str());
         address.port = port;
 
-        enet_peer = enet_host_connect(client, &address, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0);
+        enet_peer = enet_host_connect(enet_host, &address, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0);
         if (nullptr == enet_peer)
         {
             RUN_LOG_ERR("create connection failure while enet peer create");
@@ -166,7 +199,7 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
         }
 
         ENetEvent enet_event;
-        if (enet_host_service(client, &enet_event, 5000) <= 0)
+        if (enet_host_service(enet_host, &enet_event, 5000) <= 0)
         {
             RUN_LOG_ERR("create connection failure while enet peer connect timeout");
             break;
@@ -178,9 +211,9 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
             break;
         }
 
-        enet_socket_get_address(client->socket, &client->address);
+        enet_socket_get_address(enet_host->socket, &enet_host->address);
 
-        std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(m_enet_service, client, enet_peer);
+        std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(m_enet_service, enet_host, enet_peer, enet_packets);
         if (!enet_connection)
         {
             RUN_LOG_ERR("create connection failure while enet connection create");
@@ -195,7 +228,7 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
 
         enet_peer->data = enet_connection.get();
 
-        std::thread enet_thread = std::thread(&EnetManagerImpl::handle_event, this, client, enet_connection);
+        std::thread enet_thread = std::thread(&EnetManagerImpl::handle_event, this, enet_host, enet_packets, enet_connection);
         if (!enet_thread.joinable())
         {
             RUN_LOG_ERR("create connection failure while event thread create");
@@ -208,25 +241,25 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
         return (enet_connection);
     } while (false);
 
-    if (nullptr != enet_connection)
-    {
-        delete enet_connection;
-    }
-
     if (nullptr != enet_peer)
     {
         enet_peer_reset(enet_peer);
     }
 
-    if (nullptr != client)
+    if (nullptr != enet_host)
     {
-        enet_host_destroy(client);
+        enet_host_destroy(enet_host);
+    }
+
+    if (nullptr != enet_packets)
+    {
+        delete enet_packets;
     }
 
     return (nullptr);
 }
 
-void EnetManagerImpl::handle_event(ENetHost * host, std::shared_ptr<EnetConnection> connection)
+void EnetManagerImpl::handle_event(ENetHost * enet_host, EnetPacketList * enet_packets, std::shared_ptr<EnetConnection> connection)
 {
     ++m_enet_thread_count;
 
@@ -246,16 +279,39 @@ void EnetManagerImpl::handle_event(ENetHost * host, std::shared_ptr<EnetConnecti
 
     while (m_running && working)
     {
-        if (enet_host_service(host, &enet_event, 1) > 0)
+        {
+            std::list<EnetPacket> send_packets;
+
+            {
+                std::lock_guard<std::mutex> locker(enet_packets->mutex);
+
+                enet_packets->packets.swap(send_packets);
+            }
+
+            for (std::list<EnetPacket>::iterator iter = send_packets.begin(); send_packets.end() != iter; ++iter)
+            {
+                EnetPacket & packet = *iter;
+                if (enet_peer_send(packet.peer, packet.channel, packet.packet) < 0)
+                {
+                    enet_packet_destroy(packet.packet);
+                }
+                else
+                {
+                    enet_host_service(enet_host, nullptr, 0);
+                }
+            }
+        }
+
+        if (enet_host_service(enet_host, &enet_event, 1) > 0)
         {
             switch (enet_event.type)
             {
                 case ENET_EVENT_TYPE_CONNECT:
                 {
-                    std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(m_enet_service, host, enet_event.peer);
+                    std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(m_enet_service, enet_host, enet_event.peer, enet_packets);
                     if (!!enet_connection)
                     {
-                        if (enet_connection->on_accept(host->address.port))
+                        if (enet_connection->on_accept(enet_host->address.port))
                         {
                             enet_event.peer->data = enet_connection.get();
                             enet_connection_map[enet_event.peer->data] = enet_connection;
@@ -296,7 +352,25 @@ void EnetManagerImpl::handle_event(ENetHost * host, std::shared_ptr<EnetConnecti
         }
     }
 
-    enet_host_destroy(host);
+    {
+        std::list<EnetPacket> send_packets;
+
+        {
+            std::lock_guard<std::mutex> locker(enet_packets->mutex);
+
+            enet_packets->packets.swap(send_packets);
+        }
+
+        for (std::list<EnetPacket>::iterator iter = send_packets.begin(); send_packets.end() != iter; ++iter)
+        {
+            EnetPacket & packet = *iter;
+            enet_packet_destroy(packet.packet);
+        }
+    }
+
+    enet_host_destroy(enet_host);
+
+    delete enet_packets;
 
     --m_enet_thread_count;
 }

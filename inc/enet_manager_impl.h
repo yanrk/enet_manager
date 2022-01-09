@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include "enet/enet.h"
+#include "enet_packet.h"
 #include "enet_manager.h"
 
 class EnetConnection;
@@ -37,7 +38,7 @@ public:
     std::shared_ptr<EnetConnection> create_connection(const std::string & host, unsigned short port, const void * identity, const char * bind_ip, unsigned short bind_port);
 
 private:
-    void handle_event(ENetHost * host, std::shared_ptr<EnetConnection> connection);
+    void handle_event(ENetHost * enet_host, EnetPacketList * enet_packets, std::shared_ptr<EnetConnection> connection);
 
 private:
     volatile bool                               m_running;

@@ -20,10 +20,11 @@ EnetConnectionBase::~EnetConnectionBase()
 
 }
 
-EnetConnection::EnetConnection(EnetServiceBase * enet_service, ENetHost * enet_host, ENetPeer * enet_peer)
+EnetConnection::EnetConnection(EnetServiceBase * enet_service, ENetHost * enet_host, ENetPeer * enet_peer, EnetPacketList * enet_packets)
     : m_enet_service(enet_service)
     , m_enet_host(enet_host)
     , m_enet_peer(enet_peer)
+    , m_enet_packets(enet_packets)
     , m_enet_channels()
     , m_user_data(nullptr)
     , m_closed(false)
@@ -132,7 +133,18 @@ bool EnetConnection::send(enet_uint8 channel, const void * data, std::size_t len
         return (false);
     }
 
-    return (0 == enet_peer_send(m_enet_peer, channel, enet_packet));
+    EnetPacket packet = { 0x0 };
+    packet.peer = m_enet_peer;
+    packet.packet = enet_packet;
+    packet.channel = channel;
+
+    {
+        std::lock_guard<std::mutex> locker(m_enet_packets->mutex);
+
+        m_enet_packets->packets.push_back(packet);
+    }
+
+    return (true);
 }
 
 bool EnetConnection::on_connect(const void * identity)
