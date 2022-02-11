@@ -104,6 +104,11 @@ bool EnetChannel::reopen()
     return (true);
 }
 
+std::shared_ptr<EnetConnectionBase> EnetChannel::get_connection()
+{
+    return (m_enet_connection.lock());
+}
+
 bool EnetChannel::closed() const
 {
     return (m_closed);

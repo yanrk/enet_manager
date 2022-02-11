@@ -40,6 +40,9 @@ public:
     virtual bool reopen() override;
 
 public:
+    virtual std::shared_ptr<EnetConnectionBase> get_connection() override;
+
+public:
     bool closed() const;
 
 private:

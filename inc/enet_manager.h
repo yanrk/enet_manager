@@ -32,6 +32,8 @@
     #define ENET_MANAGER_API
 #endif // _MSC_VER
 
+class EnetConnectionBase;
+
 class ENET_MANAGER_API EnetChannelBase
 {
 public:
@@ -48,6 +50,9 @@ public:
 public:
     virtual void close() = 0;
     virtual bool reopen() = 0;
+
+public:
+    virtual std::shared_ptr<EnetConnectionBase> get_connection() = 0;
 };
 
 typedef std::shared_ptr<EnetChannelBase> EnetChannelSharedPtr;
