@@ -20,8 +20,9 @@ EnetConnectionBase::~EnetConnectionBase()
 
 }
 
-EnetConnection::EnetConnection(EnetServiceBase * enet_service, ENetHost * enet_host, ENetPeer * enet_peer, EnetPacketList * enet_packets)
-    : m_enet_service(enet_service)
+EnetConnection::EnetConnection(std::map<void *, std::shared_ptr<EnetConnection>> * enet_connection_map, EnetServiceBase * enet_service, ENetHost * enet_host, ENetPeer * enet_peer, EnetPacketList * enet_packets)
+    : m_enet_connection_map(enet_connection_map)
+    , m_enet_service(enet_service)
     , m_enet_host(enet_host)
     , m_enet_peer(enet_peer)
     , m_enet_packets(enet_packets)
@@ -115,9 +116,11 @@ void EnetConnection::close()
         return;
     }
 
-    on_close();
+    m_enet_peer->data = nullptr;
 
     enet_peer_disconnect(m_enet_peer, 0);
+
+    on_close();
 }
 
 bool EnetConnection::send(enet_uint8 channel, const void * data, std::size_t len, bool reliable)
@@ -149,12 +152,36 @@ bool EnetConnection::send(enet_uint8 channel, const void * data, std::size_t len
 
 bool EnetConnection::on_connect(const void * identity)
 {
-    return (m_enet_service->on_connection_connect(shared_from_this(), identity));
+    if (!m_enet_service->on_connection_connect(shared_from_this(), identity))
+    {
+        return (false);
+    }
+
+    m_enet_peer->data = this;
+
+    if (nullptr != m_enet_connection_map)
+    {
+        (*m_enet_connection_map)[this] = shared_from_this();
+    }
+
+    return (true);
 }
 
 bool EnetConnection::on_accept(unsigned short listener_port)
 {
-    return (m_enet_service->on_connection_accept(shared_from_this(), listener_port));
+    if (!m_enet_service->on_connection_accept(shared_from_this(), listener_port))
+    {
+        return (false);
+    }
+
+    m_enet_peer->data = this;
+
+    if (nullptr != m_enet_connection_map)
+    {
+        (*m_enet_connection_map)[this] = shared_from_this();
+    }
+
+    return (true);
 }
 
 void EnetConnection::on_close()
@@ -177,6 +204,13 @@ void EnetConnection::on_close()
     }
 
     m_enet_service->on_connection_close(shared_from_this());
+
+    m_enet_peer->data = nullptr;
+
+    if (nullptr != m_enet_connection_map)
+    {
+        m_enet_connection_map->erase(this);
+    }
 }
 
 bool EnetConnection::on_recv(enet_uint8 channel, const void * data, std::size_t len)

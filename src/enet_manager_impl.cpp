@@ -213,7 +213,7 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
 
         enet_socket_get_address(enet_host->socket, &enet_host->address);
 
-        std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(m_enet_service, enet_host, enet_peer, enet_packets);
+        std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(nullptr, m_enet_service, enet_host, enet_peer, enet_packets);
         if (!enet_connection)
         {
             RUN_LOG_ERR("create connection failure while enet connection create");
@@ -225,8 +225,6 @@ std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::st
             RUN_LOG_ERR("create connection failure while user preprocess failure");
             break;
         }
-
-        enet_peer->data = enet_connection.get();
 
         std::thread enet_thread = std::thread(&EnetManagerImpl::handle_event, this, enet_host, enet_packets, enet_connection);
         if (!enet_thread.joinable())
@@ -268,11 +266,7 @@ void EnetManagerImpl::handle_event(ENetHost * enet_host, EnetPacketList * enet_p
     ENetEvent enet_event;
     std::map<void *, std::shared_ptr<EnetConnection>> enet_connection_map;
 
-    if (!!connection)
-    {
-        enet_connection_map[connection.get()] = connection;
-    }
-    else
+    if (!connection)
     {
         client = false;
     }
@@ -308,14 +302,10 @@ void EnetManagerImpl::handle_event(ENetHost * enet_host, EnetPacketList * enet_p
             {
                 case ENET_EVENT_TYPE_CONNECT:
                 {
-                    std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(m_enet_service, enet_host, enet_event.peer, enet_packets);
+                    std::shared_ptr<EnetConnection> enet_connection = std::make_shared<EnetConnection>(&enet_connection_map, m_enet_service, enet_host, enet_event.peer, enet_packets);
                     if (!!enet_connection)
                     {
-                        if (enet_connection->on_accept(enet_host->address.port))
-                        {
-                            enet_event.peer->data = enet_connection.get();
-                            enet_connection_map[enet_event.peer->data] = enet_connection;
-                        }
+                        enet_connection->on_accept(enet_host->address.port);
                     }
                     break;
                 }
@@ -335,8 +325,6 @@ void EnetManagerImpl::handle_event(ENetHost * enet_host, EnetPacketList * enet_p
                     if (!!enet_connection)
                     {
                         enet_connection->on_close();
-                        enet_connection_map.erase(enet_event.peer->data);
-                        enet_event.peer->data = nullptr;
                     }
                     if (client)
                     {
@@ -349,6 +337,10 @@ void EnetManagerImpl::handle_event(ENetHost * enet_host, EnetPacketList * enet_p
                     break;
                 }
             }
+        }
+        else if (client && connection->closed())
+        {
+            break;
         }
     }
 
