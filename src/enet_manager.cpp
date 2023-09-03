@@ -22,7 +22,7 @@ EnetManager::~EnetManager()
     exit();
 }
 
-bool EnetManager::init(EnetServiceBase * enet_service, const char * host, unsigned short * port_array, std::size_t port_count)
+bool EnetManager::init(EnetServiceBase * enet_service, const char * host, unsigned short * port_array, std::size_t port_count, bool port_any_valid)
 {
     m_manager_impl = new EnetManagerImpl;
     if (nullptr == m_manager_impl)
@@ -30,7 +30,7 @@ bool EnetManager::init(EnetServiceBase * enet_service, const char * host, unsign
         return (false);
     }
 
-    if (m_manager_impl->init(enet_service, host, port_array, port_count))
+    if (m_manager_impl->init(enet_service, host, port_array, port_count, port_any_valid))
     {
         return (true);
     }

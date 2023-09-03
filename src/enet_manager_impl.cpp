@@ -29,7 +29,7 @@ EnetManagerImpl::~EnetManagerImpl()
     exit();
 }
 
-bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, unsigned short * port_array, std::size_t port_count)
+bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, unsigned short * port_array, std::size_t port_count, bool port_any_valid)
 {
     exit();
 
@@ -70,11 +70,8 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
             ENetAddress address;
             enet_address_set_host(&address, host);
 
-            std::size_t port_index = 0;
-            while (port_index < port_count)
+            if (port_any_valid)
             {
-                address.port = port_array[port_index];
-
                 enet_packets = new EnetPacketList;
                 if (nullptr == enet_packets)
                 {
@@ -82,10 +79,21 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
                     break;
                 }
 
-                enet_host = enet_host_create(&address, ENET_PROTOCOL_MAXIMUM_PEER_ID, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
+                for (std::size_t port_index = 0; port_index < port_count; ++port_index)
+                {
+                    address.port = port_array[port_index];
+
+                    enet_host = enet_host_create(&address, ENET_PROTOCOL_MAXIMUM_PEER_ID, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
+                    if (nullptr != enet_host)
+                    {
+                        break;
+                    }
+                }
+
                 if (nullptr == enet_host)
                 {
                     RUN_LOG_ERR("enet manager init failure while enet server create");
+                    delete enet_packets;
                     break;
                 }
 
@@ -93,30 +101,63 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
                 if (!enet_thread.joinable())
                 {
                     RUN_LOG_ERR("enet manager init failure while event thread create");
+                    enet_host_destroy(enet_host);
+                    delete enet_packets;
                     break;
                 }
 
                 enet_thread.detach();
-
-                enet_host = nullptr;
-                enet_packets = nullptr;
-
-                ++port_index;
             }
-
-            if (nullptr != enet_host)
+            else
             {
-                enet_host_destroy(enet_host);
-            }
+                std::size_t port_index = 0;
+                while (port_index < port_count)
+                {
+                    address.port = port_array[port_index];
 
-            if (nullptr != enet_packets)
-            {
-                delete enet_packets;
-            }
+                    enet_packets = new EnetPacketList;
+                    if (nullptr == enet_packets)
+                    {
+                        RUN_LOG_ERR("enet manager init failure while enet packets create");
+                        break;
+                    }
 
-            if (port_index < port_count)
-            {
-                break;
+                    enet_host = enet_host_create(&address, ENET_PROTOCOL_MAXIMUM_PEER_ID, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
+                    if (nullptr == enet_host)
+                    {
+                        RUN_LOG_ERR("enet manager init failure while enet server create");
+                        break;
+                    }
+
+                    std::thread enet_thread = std::thread(&EnetManagerImpl::handle_event, this, enet_host, enet_packets, nullptr);
+                    if (!enet_thread.joinable())
+                    {
+                        RUN_LOG_ERR("enet manager init failure while event thread create");
+                        break;
+                    }
+
+                    enet_thread.detach();
+
+                    enet_host = nullptr;
+                    enet_packets = nullptr;
+
+                    ++port_index;
+                }
+
+                if (nullptr != enet_host)
+                {
+                    enet_host_destroy(enet_host);
+                }
+
+                if (nullptr != enet_packets)
+                {
+                    delete enet_packets;
+                }
+
+                if (port_index < port_count)
+                {
+                    break;
+                }
             }
         }
 

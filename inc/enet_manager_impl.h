@@ -31,7 +31,7 @@ public:
     EnetManagerImpl & operator = (EnetManagerImpl &&) = delete;
 
 public:
-    bool init(EnetServiceBase * enet_service, const char * host, unsigned short * port_array, std::size_t port_count);
+    bool init(EnetServiceBase * enet_service, const char * host, unsigned short * port_array, std::size_t port_count, bool port_any_valid);
     void exit();
 
 public:

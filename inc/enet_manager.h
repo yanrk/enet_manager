@@ -114,7 +114,7 @@ public:
     EnetManager & operator = (EnetManager &&) = delete;
 
 public:
-    bool init(EnetServiceBase * enet_service, const char * host = nullptr, unsigned short * port_array = nullptr, std::size_t port_count = 0);
+    bool init(EnetServiceBase * enet_service, const char * host = nullptr, unsigned short * port_array = nullptr, std::size_t port_count = 0, bool port_any_valid = false);
     void exit();
 
 public:
