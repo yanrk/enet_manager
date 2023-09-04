@@ -11,6 +11,7 @@
 #define ENET_MANAGER_IMPLEMENT_H
 
 
+#include <vector>
 #include <atomic>
 #include "enet/enet.h"
 #include "enet_packet.h"
@@ -35,6 +36,9 @@ public:
     void exit();
 
 public:
+    void get_ports(std::vector<uint16_t> & ports);
+
+public:
     std::shared_ptr<EnetConnection> create_connection(const std::string & host, unsigned short port, const void * identity, const char * bind_ip, unsigned short bind_port);
 
 private:
@@ -44,6 +48,7 @@ private:
     volatile bool                               m_running;
     EnetServiceBase                           * m_enet_service;
     std::atomic<uint32_t>                       m_enet_thread_count;
+    std::vector<uint16_t>                       m_enet_ports;
 };
 
 

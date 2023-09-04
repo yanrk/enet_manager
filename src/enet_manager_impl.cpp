@@ -20,6 +20,7 @@ EnetManagerImpl::EnetManagerImpl()
     : m_running(false)
     , m_enet_service(nullptr)
     , m_enet_thread_count(0)
+    , m_enet_ports()
 {
 
 }
@@ -57,6 +58,8 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
 
         m_enet_service = enet_service;
 
+        m_enet_ports.clear();
+
         if (port_count > 0)
         {
             if (nullptr == host)
@@ -86,6 +89,7 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
                     enet_host = enet_host_create(&address, ENET_PROTOCOL_MAXIMUM_PEER_ID, ENET_PROTOCOL_MAXIMUM_CHANNEL_COUNT, 0, 0);
                     if (nullptr != enet_host)
                     {
+                        m_enet_ports.push_back(address.port);
                         break;
                     }
                 }
@@ -141,6 +145,8 @@ bool EnetManagerImpl::init(EnetServiceBase * enet_service, const char * host, un
                     enet_host = nullptr;
                     enet_packets = nullptr;
 
+                    m_enet_ports.push_back(address.port);
+
                     ++port_index;
                 }
 
@@ -190,7 +196,14 @@ void EnetManagerImpl::exit()
         enet_deinitialize();
 
         m_enet_service = nullptr;
+
+        m_enet_ports.clear();
     }
+}
+
+void EnetManagerImpl::get_ports(std::vector<uint16_t> & ports)
+{
+    ports = m_enet_ports;
 }
 
 std::shared_ptr<EnetConnection> EnetManagerImpl::create_connection(const std::string & host, unsigned short port, const void * identity, const char * bind_ip, unsigned short bind_port)

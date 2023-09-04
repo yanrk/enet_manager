@@ -12,6 +12,7 @@
 
 
 #include <string>
+#include <vector>
 #include <memory>
 
 #ifdef _MSC_VER
@@ -116,6 +117,9 @@ public:
 public:
     bool init(EnetServiceBase * enet_service, const char * host = nullptr, unsigned short * port_array = nullptr, std::size_t port_count = 0, bool port_any_valid = false);
     void exit();
+
+public:
+    void get_ports(std::vector<uint16_t> & ports);
 
 public:
     EnetConnectionSharedPtr create_connection(const std::string & host, unsigned short port, const void * identity = nullptr, const char * bind_ip = "0.0.0.0", unsigned short bind_port = 0);

@@ -51,6 +51,14 @@ void EnetManager::exit()
     }
 }
 
+void EnetManager::get_ports(std::vector<uint16_t> & ports)
+{
+    if (nullptr != m_manager_impl)
+    {
+        m_manager_impl->get_ports(ports);
+    }
+}
+
 EnetConnectionSharedPtr EnetManager::create_connection(const std::string & host, unsigned short port, const void * identity, const char * bind_ip, unsigned short bind_port)
 {
     if (nullptr != m_manager_impl)
